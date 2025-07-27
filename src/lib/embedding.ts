@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { embedMany } from "ai";
+import { embedMany, embed } from "ai";
 const embeddingModel = google.textEmbeddingModel("text-embedding-004");
 
 const generateChunks = async (text: string) => {
@@ -23,4 +23,13 @@ export async function generateEmbeddings(
     content: chunks[index],
     embedding,
   }));
+}
+
+export async function generateEmbedding(value: string): Promise<number[]> {
+  const { embedding } = await embed({
+    model: embeddingModel,
+    value,
+  });
+
+  return embedding;
 }

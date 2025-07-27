@@ -1,18 +1,20 @@
 "use client";
 
+import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { useAuthToken } from "@convex-dev/auth/react";
-import { Bot, Expand, Minimize, Send, Trash, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import { useAuthToken } from "@convex-dev/auth/react";
 import { DefaultChatTransport, UIMessage } from "ai";
-import Markdown from "@/components/markdown";
+import { Bot, Expand, Minimize, Send, Trash, X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+
 const convexSiteUrl = process.env.NEXT_PUBLIC_CONVEX_URL?.replace(
   /.cloud$/,
   ".site"
 );
+
 export function AIChatButton() {
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -31,6 +33,7 @@ interface AIChatBoxProps {
   open: boolean;
   onClose: () => void;
 }
+
 const initialMessages: UIMessage[] = [
   {
     id: "welcome-message",
@@ -43,11 +46,14 @@ const initialMessages: UIMessage[] = [
     ],
   },
 ];
+
 function AIChatBox({ open, onClose }: AIChatBoxProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [input, setInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const token = useAuthToken();
+
   const { messages, sendMessage, setMessages, status } = useChat({
     transport: new DefaultChatTransport({
       api: `${convexSiteUrl}/api/chat`,
@@ -57,36 +63,35 @@ function AIChatBox({ open, onClose }: AIChatBoxProps) {
     }),
     messages: initialMessages,
   });
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const isProcessing = status === "submitted" || status === "streaming";
+
   useEffect(() => {
     if (open) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [open, messages]);
-  const isProcessing = status === "submitted" || status === "streaming";
 
-  if (!open) return null;
-
-  const onSubmit = async (e: React.FormEvent) => {
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || isProcessing) return;
-    await sendMessage({
-      text: input,
-    });
-    setInput("");
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && e.shiftKey) {
-      return;
+    if (input.trim() && !isProcessing) {
+      sendMessage({ text: input });
+      setInput("");
     }
-    if (e.key === "Enter") {
-      e.preventDefault();
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
       onSubmit(e);
     }
   };
 
-  const lastMessageIsUser = messages[messages.length - 1]?.role === "user";
+  if (!open) return null;
+
+  const lastMessageIsUser = messages[messages.length - 1].role === "user";
+
   return (
     <div
       className={cn(
@@ -114,11 +119,10 @@ function AIChatBox({ open, onClose }: AIChatBoxProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => {
-              setMessages(initialMessages);
-            }}
+            onClick={() => setMessages(initialMessages)}
             className="text-primary-foreground hover:bg-primary/90 h-8 w-8"
             title="Clear chat"
+            disabled={isProcessing}
           >
             <Trash />
           </Button>
@@ -146,16 +150,16 @@ function AIChatBox({ open, onClose }: AIChatBoxProps) {
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Type your message..."
           className="max-h-[120px] min-h-[40px] resize-none overflow-y-auto"
           maxLength={1000}
           autoFocus
-          onKeyDown={handleKeyDown}
         />
         <Button
           type="submit"
           size="icon"
-          disabled={isProcessing || !input.trim()}
+          disabled={!input.trim() || isProcessing}
         >
           <Send className="size-4" />
         </Button>
@@ -168,8 +172,9 @@ interface ChatMessageProps {
   message: UIMessage;
 }
 
-const ChatMessage = ({ message }: ChatMessageProps) => {
+function ChatMessage({ message }: ChatMessageProps) {
   const currentStep = message.parts[message.parts.length - 1];
+
   return (
     <div
       className={cn(
@@ -194,10 +199,14 @@ const ChatMessage = ({ message }: ChatMessageProps) => {
         {currentStep?.type === "text" && (
           <Markdown>{currentStep.text}</Markdown>
         )}
+        {currentStep.type === "tool-invocation" && (
+          <div className="italic animate-pulse">Searching notes...</div>
+        )}
       </div>
     </div>
   );
-};
+}
+
 function Loader() {
   return (
     <div className="ml-2 flex items-center gap-1 py-2">
@@ -208,10 +217,10 @@ function Loader() {
   );
 }
 
-const ErrorMessage = () => {
+function ErrorMessage() {
   return (
     <div className="text-sm text-red-500">
-      An error occurred. Please try again.
+      Something went wrong. Please try again.
     </div>
   );
-};
+}

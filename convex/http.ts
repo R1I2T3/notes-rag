@@ -1,7 +1,15 @@
 import { google } from "@ai-sdk/google";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { convertToModelMessages, streamText, UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  stepCountIs,
+  streamText,
+  tool,
+  UIMessage,
+} from "ai";
 import { httpRouter } from "convex/server";
+import { z } from "zod";
+import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { auth } from "./auth";
 
@@ -23,9 +31,41 @@ http.route({
     const lastMessages = messages.slice(-10);
 
     const result = streamText({
-      model: google("gemini-1.5-flash"),
-      system: "You are a helpful assistant that answers the user's questions.",
+      model: google("gemini-2.0-flash"),
+      system: `
+      You are a helpful assistant that can search through the user's notes.
+      Use the information from the notes to answer questions and provide insights.
+      If the requested information is not available, respond with "Sorry, I can't find that information in your notes".
+      You can use markdown formatting like links, bullet points, numbered lists, and bold text.
+      Provide links to relevant notes using this relative URL structure (omit the base URL): ${process.env.SITE_URL}/notes?noteId=<note-id>'.
+      Keep your responses concise and to the point.
+      `,
       messages: convertToModelMessages(lastMessages),
+      stopWhen: stepCountIs(3),
+      tools: {
+        findRelevantNotes: tool({
+          description:
+            "Retrieve relevant notes from the database based on the user's query",
+          inputSchema: z.object({
+            query: z.string().describe("The user's query"),
+          }),
+          execute: async ({ query }) => {
+            const relevantNotes = await ctx.runAction(
+              internal.notes_action.findRelatedNotes,
+              {
+                query,
+                userId,
+              }
+            );
+            return relevantNotes.map((note) => ({
+              id: note._id,
+              title: note.title,
+              body: note.body,
+              creationTime: note._creationTime,
+            }));
+          },
+        }),
+      },
       onError(error) {
         console.error("streamText error:", error);
       },

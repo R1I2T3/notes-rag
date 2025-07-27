@@ -15,10 +15,11 @@ const schema = defineSchema({
     noteId: v.id("notes"),
     userId: v.id("users"),
   })
+    .index("by_notedId", ["noteId"])
     .index("by_userId", ["userId"])
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
-      dimensions: 1536,
+      dimensions: 768,
       filterFields: ["userId"],
     }),
 });

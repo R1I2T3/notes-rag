@@ -1,5 +1,10 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { internalMutation, mutation, query } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 import { v } from "convex/values";
 export const createNoteWithEmbeddings = internalMutation({
   args: {
@@ -65,7 +70,43 @@ export const deleteNote = mutation({
     if (!note || note.userId !== userId) {
       throw new Error("Note not found or unauthorized");
     }
+
+    const embeddings = await ctx.db
+      .query("noteEmbeddings")
+      .withIndex("by_notedId", (q) => q.eq("noteId", args.noteId))
+      .collect();
+    for (const embedding of embeddings) {
+      await ctx.db.delete(embedding._id);
+    }
     await ctx.db.delete(args.noteId);
     return true;
+  },
+});
+
+export const fetchNotesByEmbeddingIds = internalQuery({
+  args: {
+    embeddingIds: v.array(v.id("noteEmbeddings")),
+  },
+  handler: async (ctx, args) => {
+    const embeddings = [];
+    for (const id of args.embeddingIds) {
+      const embedding = await ctx.db.get(id);
+      if (embedding !== null) {
+        embeddings.push(embedding);
+      }
+    }
+    const uniqueNoteIds = [
+      ...new Set(embeddings.map((embedding) => embedding.noteId)),
+    ];
+
+    const results = [];
+    for (const id of uniqueNoteIds) {
+      const note = await ctx.db.get(id);
+      if (note !== null) {
+        results.push(note);
+      }
+    }
+
+    return results;
   },
 });

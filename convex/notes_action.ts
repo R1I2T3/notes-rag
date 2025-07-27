@@ -2,10 +2,10 @@
 
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { generateEmbeddings } from "../src/lib/embedding";
+import { generateEmbedding, generateEmbeddings } from "../src/lib/embedding";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
-import { action } from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
+import { action, internalAction } from "./_generated/server";
 
 export const createNote = action({
   args: {
@@ -33,5 +33,29 @@ export const createNote = action({
     );
 
     return noteId;
+  },
+});
+
+export const findRelatedNotes = internalAction({
+  args: {
+    query: v.string(),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args): Promise<Array<Doc<"notes">>> => {
+    if (!args.userId) {
+      throw new Error("Unauthorized");
+    }
+    const embedding = await generateEmbedding(args.query);
+    const result = await ctx.vectorSearch("noteEmbeddings", "by_embedding", {
+      vector: embedding,
+      limit: 16,
+      filter: (q) => q.eq("userId", args.userId),
+    });
+    const resultAboveThreshold = result.filter((result) => result._score > 0.3);
+    const embeddingIds = resultAboveThreshold.map((result) => result._id);
+    const notes = await ctx.runQuery(internal.notes.fetchNotesByEmbeddingIds, {
+      embeddingIds,
+    });
+    return notes;
   },
 });
