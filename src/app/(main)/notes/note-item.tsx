@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Doc } from "../../../../convex/_generated/dataModel";
 import { NotePreviewDialog } from "./note-preview-dialog";
+import Markdown from "@/components/markdown";
 
 interface NoteItemProps {
   note: Doc<"notes">;
@@ -23,7 +24,7 @@ export function NoteItem({ note }: NoteItemProps) {
         </CardHeader>
         <CardContent>
           <div className="line-clamp-3 text-sm text-muted-foreground whitespace-pre-line">
-            {note.body}
+            <Markdown>{note.body}</Markdown>
           </div>
         </CardContent>
       </Card>

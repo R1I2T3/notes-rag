@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-
+import { draftToMarkdown } from "markdown-draft-js";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,12 +23,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
 import { useAction } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { toast } from "sonner";
+import dynamic from "next/dynamic";
 
+const FullFeaturedEditor = dynamic(() => import("./text_editor"), {
+  ssr: false,
+});
 const noteFormSchema = z.object({
   title: z.string().min(1, {
     message: "Title cannot be empty.",
@@ -118,14 +121,19 @@ function CreateNoteDialog({ open, onOpenChange }: CreateNoteDialogProps) {
                 <FormItem>
                   <FormLabel>Body</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Note body" {...field} />
+                    <FullFeaturedEditor
+                      onChange={(draft) =>
+                        field.onChange(draftToMarkdown(draft))
+                      }
+                      ref={field.ref}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button type="submit" disabled={loading}>
+            <DialogFooter className="w-full">
+              <Button type="submit" disabled={loading} className="mt-10 w-full">
                 Save
               </Button>
             </DialogFooter>

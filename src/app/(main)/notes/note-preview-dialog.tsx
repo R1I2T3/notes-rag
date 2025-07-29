@@ -15,7 +15,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../../../convex/_generated/api";
 import { Doc } from "../../../../convex/_generated/dataModel";
-
+import Markdown from "@/components/markdown";
 interface NotePreviewDialogProps {
   note: Doc<"notes">;
 }
@@ -52,7 +52,9 @@ export function NotePreviewDialog({ note }: NotePreviewDialogProps) {
         <DialogHeader>
           <DialogTitle>{note.title}</DialogTitle>
         </DialogHeader>
-        <div className="mt-4 whitespace-pre-wrap">{note.body}</div>
+        <div className="mt-4 whitespace-pre-wrap">
+          <Markdown>{note.body}</Markdown>
+        </div>
         <DialogFooter className="mt-6">
           <Button
             variant="destructive"

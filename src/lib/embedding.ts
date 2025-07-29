@@ -1,5 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { embedMany, embed } from "ai";
+import removeMd from "remove-markdown";
 const embeddingModel = google.textEmbeddingModel("text-embedding-004");
 
 const generateChunks = async (text: string) => {
@@ -12,7 +13,7 @@ const generateChunks = async (text: string) => {
 export async function generateEmbeddings(
   value: string
 ): Promise<Array<{ content: string; embedding: number[] }>> {
-  const chunks = await generateChunks(value);
+  const chunks = await generateChunks(removeMd(value));
 
   const { embeddings } = await embedMany({
     model: embeddingModel,
