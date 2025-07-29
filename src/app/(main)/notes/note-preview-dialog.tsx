@@ -9,13 +9,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useMutation } from "convex/react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Edit2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "../../../../convex/_generated/api";
 import { Doc } from "../../../../convex/_generated/dataModel";
 import Markdown from "@/components/markdown";
+import CreateUpdateNoteDialog from "./CreateUpdateNoteDialog";
 interface NotePreviewDialogProps {
   note: Doc<"notes">;
 }
@@ -26,7 +27,7 @@ export function NotePreviewDialog({ note }: NotePreviewDialogProps) {
 
   const deleteNote = useMutation(api.notes.deleteNote);
   const [deletePending, setDeletePending] = useState(false);
-
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   async function handleDelete() {
     setDeletePending(true);
     try {
@@ -56,6 +57,20 @@ export function NotePreviewDialog({ note }: NotePreviewDialogProps) {
           <Markdown>{note.body}</Markdown>
         </div>
         <DialogFooter className="mt-6">
+          <Button
+            className="gap-2"
+            onClick={() => {
+              setUpdateDialogOpen(true);
+            }}
+          >
+            <Edit2 size={16} />
+            Update Note
+          </Button>
+          <CreateUpdateNoteDialog
+            open={updateDialogOpen}
+            onOpenChange={setUpdateDialogOpen}
+            note={note}
+          />
           <Button
             variant="destructive"
             className="gap-2"

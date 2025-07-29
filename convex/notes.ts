@@ -40,6 +40,50 @@ export const createNoteWithEmbeddings = internalMutation({
   },
 });
 
+export const updateNoteWithEmbeddings = internalMutation({
+  args: {
+    title: v.string(),
+    body: v.string(),
+    userId: v.id("users"),
+    noteId: v.id("notes"),
+    embeddings: v.array(
+      v.object({
+        embedding: v.array(v.float64()),
+        content: v.string(),
+      })
+    ),
+  },
+  returns: v.id("notes"),
+  handler: async (ctx, args) => {
+    if (!args.userId) {
+      throw new Error("Unauthorized");
+    }
+    const currentNote = await ctx.db.get(args.noteId);
+    if (!currentNote || currentNote.userId !== args.userId) {
+      throw new Error("Note not found or unauthorized");
+    }
+    await ctx.db.patch(args.noteId, {
+      title: args.title,
+      body: args.body,
+    });
+    const existingEmbeddings = await ctx.db
+      .query("noteEmbeddings")
+      .withIndex("by_notedId", (q) => q.eq("noteId", args.noteId))
+      .collect();
+    for (const embedding of existingEmbeddings) {
+      await ctx.db.delete(embedding._id);
+    }
+    for (const embeddingData of args.embeddings) {
+      await ctx.db.insert("noteEmbeddings", {
+        content: embeddingData.content,
+        embedding: embeddingData.embedding,
+        noteId: args.noteId,
+        userId: args.userId,
+      });
+    }
+    return args.noteId;
+  },
+});
 export const getUserNotes = query({
   args: {},
   handler: async (ctx) => {

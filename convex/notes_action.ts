@@ -36,6 +36,36 @@ export const createNote = action({
   },
 });
 
+export const updateNote = action({
+  args: {
+    noteId: v.id("notes"),
+    title: v.string(),
+    body: v.string(),
+  },
+  returns: v.id("notes"),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User must be authenticated to update a note");
+    }
+
+    const text = `${args.title}\n\n${args.body}`;
+    const embeddings = await generateEmbeddings(text);
+
+    const noteId: Id<"notes"> = await ctx.runMutation(
+      internal.notes.updateNoteWithEmbeddings,
+      {
+        noteId: args.noteId,
+        title: args.title,
+        body: args.body,
+        userId,
+        embeddings,
+      }
+    );
+
+    return noteId;
+  },
+});
 export const findRelatedNotes = internalAction({
   args: {
     query: v.string(),
